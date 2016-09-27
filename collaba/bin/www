@@ -8,6 +8,7 @@ var app = require('../app');
 var debug = require('debug')('chatServer:server');
 var http = require('http');
 var users = require('../models/user');
+var personalChatData=require('../models/chatDataBase');
 /**
  * Get port from environment and store in Express.
  */
@@ -44,9 +45,17 @@ io.on('connection', function(socket){
          socket.emit("fail");
        }
       else {
-        usersOnline.push({'socket':socket,'id':socket.id,'name':user['username']});
-        userlist.push({'id':socket.id,'name':user['username']});
-        console.log(usersOnline);
+
+        var index=findInUserList(user['username']);
+        if(index!=(-1))
+        {
+          console.log("present");
+        }
+        else {
+          usersOnline.push({'socket':socket,'id':socket.id,'name':user['username']});
+          userlist.push({'id':socket.id,'name':user['username']});
+        }
+
       io.emit('success',userlist);
 
       }
@@ -54,18 +63,78 @@ io.on('connection', function(socket){
      });
 
   });
+  socket.on('acceptRequest',function(name,sender){
+    var flag=0;
+    console.log(name,sender);
+    personalChatData.findOne({user1:name,user2:sender},function(err,row){
+      if(row==null)
+      {
+        personalChatData.findOne({user1:sender,user2:name},function(err,row){
+          if(row!=null)
+          {
+            flag=1;
+          }
+          else {
+            var id=name+"-"+sender;
+            var personalChat=new personalChatData({chatId:id,user1:name,user2:sender});
+            console.log("database created for "+name+" "+sender);
+            personalChat.save(function(err){
+              if(err) return console.error(err);
+            });
+
+          }
+        });
+
+      }
+    });
+
+  
+
+
+    var ss=findWithName(name);
+    ss.emit('accepted',sender);
+  });
   socket.on('sendToSender',function(sender,reciever,msg){
     var ss=findWithName(reciever);
     ss.emit('senderMsg',sender,msg);
   });
   socket.on('sendMsg',function(sender,reciever,msg){
+
+    var flag=0;
+    personalChatData.findOne({user1:reciever,user2:sender},function(err,row){
+      if(row!=null)
+      {
+        flag=1;
+        row['chatMessages'].push({'sender':sender,'message':msg});
+        row.save(function(err){
+          if(err) return console.error(err);
+        });
+
+      }
+      else {
+        {
+          return console.error("not found");
+        }
+      }
+    });
+    if(flag==0)
+    {
+      personalChatData.findOne({user1:sender,user2:reciever},function(err,row){
+        if(row!=null)
+        {
+          flag=1;
+          row['chatMessages'].push({'sender':sender,'message':msg});
+          row.save(function(err){
+            if(err) return console.error(err);
+          })
+        }
+      });
+    }
+
     var ss=findWithName(reciever);
     ss.emit('sendToReciever',sender,msg);
   });
-  socket.on('acceptRequest',function(name){
-    var ss=findWithName(name);
-    ss.emit('accepted',name);
-  });
+
   socket.on('rejectRequest',function(name){
     var ss=findWithName(name);
     ss.emit('rejected',name);
@@ -79,6 +148,14 @@ io.on('connection', function(socket){
 /**
  * Listen on provided port, on all network interfaces.
  */
+ function findInUserList(name){
+   for(var i=0;i<userlist.length;i++)
+   {
+     if(usersOnline[i]['name']==name)
+     return i;
+   }
+   return -1;
+ }
  function findWithName(name)
  {
    for(var i=0;i<usersOnline.length;i++)

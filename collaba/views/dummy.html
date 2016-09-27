@@ -2,7 +2,17 @@
 <head>
 </head>
 <body>
-  <a href="/login">login</a>
-  <a href="/register">register</a>
+  <div>
+    <a class="a" href="/login">login</a>
+    <a class="a" href="/register">register</a>
+  </div>
+  <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+  <script>
+  var count=0;
+  $(".a").each(function() {
+   count++;
+});
+console.log(count);
+  </script>
 </body>
 </html>
