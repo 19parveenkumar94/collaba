@@ -199,6 +199,7 @@ li{
 
   </div>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/javascripts/socket.io-stream.js"></script>
   <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
 
   <script>
@@ -217,6 +218,7 @@ li{
     $("#myModal").show();
 
   });
+  //Getting msg from other user and appending it to the chat
   socket.on('senderMsg',function(sender,msg){
     $('#'+sender+' #messages').append($('<li>').text(sender+":  "+msg));
   });
@@ -228,6 +230,43 @@ li{
 
 
   });
+
+  $(document.body).on('change','#file',function(e){
+    //console.log(this.val());
+    alert("changed");
+    var file = e.target.files[0];
+    var stream = ss.createStream();
+    var n=e.target.value;
+    alert(n);
+    var arr=n.split('\\');
+    console.log(arr[arr.length -1]);
+    var nn= Math.floor(Date.now() / 1000)+arr[arr.length -1];
+    alert(nn);
+    // ss(socket).emit('fileUpload', stream, {size: file.size,name:nn});
+    // ss.createBlobReadStream(file).pipe(stream);
+    var blobStream = ss.createBlobReadStream(file);
+    var size = 0;
+
+    blobStream.on('data', function(chunk) {
+    size += chunk.length;
+    var p=(size / file.size * 100);
+    console.log(Math.floor(p));
+    if(p==100)
+    {
+      var iid = $(e.target).parent().attr('id');
+      alert(iid);
+
+      ss(socket).emit('fileUpload', stream, {size: file.size,name:nn,sender:$('#username').val(),reciever:iid});
+      ss.createBlobReadStream(file).pipe(stream);
+      alert("finished uploading");
+
+    }
+    });
+
+    blobStream.pipe(stream);
+  });
+
+  //On clicking send button emit a event to send msg to other user
   $(document.body).on('click','#send',function(e){
     alert("hello");
 
@@ -251,17 +290,24 @@ li{
     $('#m').val('');
     return false;
   })
+  socket.on('sendToRecieverFile',function(sender,filename){
+    var v=document.getElementById(sender);
+    v.innerHTML += (sender+":  <a href='"+filename+"'>clickto download</a>");
+  });
+  //On accepting request appending chat for those two users in a div
   socket.on('accepted',function(name){
     alert("accepted");
     $("#myModal").hide();
     $("#chatBox").css('display','block');
-    $('#chatBox').append("<div id='"+name+"'><ul id='messages'></ul><input id='m"+name+"' autocomplete='off' /><button id='send'>Send</button></div>")
+    $('#chatBox').append("<div id='"+name+"'><ul id='messages'></ul><input type='file' id='file' /><input id='m"+name+"' autocomplete='off' /><button id='send'>Send</button></div>")
 
   });
+  //On rejection hiding the modal of usersOnline
   socket.on('rejected',function(name){
     alert('rejected');
     $("#myModal").hide();
   });
+  //On recieving request showing modal to show you got a request
   socket.on('recieveRequest',function(name){
     n=name;
     alert(n);
@@ -271,11 +317,12 @@ li{
   $("#close").click(function(){
       $("#myModal").hide();
   });
+  //On accepting appending a chatbox and emiting a event to let other side know that you have accepted the request
   $("#accept").click(function(){
     $("#requestModal").hide();
     $("#myModal").hide();
     $("#chatBox").css('display','block');
-    $('#chatBox').append("<div id='"+n+"'><ul id='messages'></ul><input id='m"+n+"' autocomplete='off' /><button id='send'>Send</button></div>")
+    $('#chatBox').append("<div id='"+n+"'><ul id='messages'></ul><input type='file' id='file' /><input id='m"+n+"' autocomplete='off' /><button id='send'>Send</button></div>")
     socket.emit('acceptRequest',n,$("#username").val());
   });
   $("#reject").click(function(){
@@ -304,7 +351,7 @@ li{
       $("#usersOnline").append("<li  id="+usersOnline[i]['id']+">"+usersOnline[i]['name']);
     }
   });
-
+//On clicking a user in usersOnline list emiting a event for request
   $(document.body).on('click','li',function(){
     reciever=findById(this.id);
     alert(reciever);

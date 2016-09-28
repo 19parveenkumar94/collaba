@@ -14,6 +14,13 @@ router.get('/userlist', function(req, res) {
         });
     });
 });
+
+router.get("/upload",function(req,res,next){
+
+  res.render('serverUpload');
+
+});
+
 router.get("/",function(req,res,next){
 
   res.render('dummy');
@@ -42,11 +49,12 @@ router.get("/checkLogin",function(req,res,next){
 //    });
 //
 // });
-router.post("/registerUser",function(req,res,next){
+router.post("/registerUser",function(req,res){
 var login=new users({username:req.body.username,password:req.body.password,email:req.body.email});
 users.findOne({email:req.body.email},function(err,users){
   if(users)
   {
+    console.log('here');
     res.redirect('/register');
   }
   else{

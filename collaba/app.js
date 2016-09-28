@@ -4,10 +4,11 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+
 var mongoose = require('mongoose');
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
-var routes = require('./routes/index');
+//var routes = require('./routes/index');
 var users = require('./routes/users');
 var login = require('./routes/login');
 var app = express();
@@ -17,6 +18,11 @@ var db = monk('localhost:27017/login');
 // view engine setup
 app.engine('html', require('ejs').renderFile);
 app.set('view engine', 'html');
+
+var auth = require("./auth.js")();
+var jwt = require('jwt-simple');
+var users = require('./models/user');
+
 // app.set('views', path.join(__dirname, 'views'));
 // app.set('view engine', 'jade');
 
@@ -41,7 +47,7 @@ app.use(function(req,res,next){
     req.db = db;
     next();
 });
-app.use('/', routes);
+//app.use('/', routes);
 //app.use('/',login);
 app.use('/users', users);
 
@@ -57,6 +63,36 @@ db.once('open', function() {
   console.log("you are connectes to mongoose");
 });
 // catch 404 and forward to error handler
+
+
+app.get('/',function(req,res){
+  res.json({status: "api is alive"});
+});
+app.get('/check',auth.authenticate(),function(req,res){
+res.json(req.user.email);
+});
+app.post('/token',function(req,res){
+  var email1=req.body.email;
+  console.log(email1);
+  users.findOne({email:email1},function(err,user){
+    if ((err)) {
+      console.log("fail");
+      res.sendStatus(401);
+    }
+    else if(user==null)
+    {
+      console.log("fail2");
+      res.sendStatus(401);
+    }
+    else{
+      console.log("emil is:"+user.email);
+      var payload = {email:user.email};
+      var token = jwt.encode(payload,'secret');
+      res.json({token:token});
+    }
+  });
+});
+
 app.use(function(req, res, next) {
   var err = new Error('Not Found');
 

@@ -7,8 +7,12 @@
 var app = require('../app');
 var debug = require('debug')('chatServer:server');
 var http = require('http');
+var ss = require('socket.io-stream');
+var fs = require('fs');
+var path = require('path');
 var users = require('../models/user');
 var personalChatData=require('../models/chatDataBase');
+
 /**
  * Get port from environment and store in Express.
  */
@@ -25,6 +29,16 @@ var person = require('../models/mongoose');
 var server = http.createServer(app);
 var io=require('socket.io').listen(server);
 io.on('connection', function(socket){
+
+  ss(socket).on('fileUpload', function(stream, data) {
+      var filename = "public/images/"+path.basename(data.name);
+      var x="/images/"+path.basename(data.name);
+      stream.pipe(fs.createWriteStream(filename));
+      console.log(data.sender+" "+data.reciever);
+      var ss=findWithName(data.reciever)
+      ss.emit('sendToRecieverFile',data.sender,x);
+    });
+
   socket.on('join',function(msg){
     console.log(socket.id+" "+msg);
     users[socket.id]=msg;
@@ -88,7 +102,7 @@ io.on('connection', function(socket){
       }
     });
 
-  
+
 
 
     var ss=findWithName(name);
@@ -132,6 +146,10 @@ io.on('connection', function(socket){
     }
 
     var ss=findWithName(reciever);
+    if(ss)
+    {
+      console.log('found socket');
+    }
     ss.emit('sendToReciever',sender,msg);
   });
 
